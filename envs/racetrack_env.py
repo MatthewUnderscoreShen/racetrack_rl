@@ -48,7 +48,8 @@ class RacetrackEnv(gym.Env):
         # function for distance squared is D(t) = (B(t) + P)^2 where B is the
         # bezier curve and P is the position of the car. The derivative is cubic
         # which has a closed solution.
-        
+        # B(t) = At^2 + Bt + C
+        A, B, C = self.cur_arc.get_bezier_coeff()
 
 
     def reset(self, seed=None, options=None):
