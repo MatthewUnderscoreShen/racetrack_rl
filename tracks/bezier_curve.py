@@ -51,3 +51,6 @@ class BezierCurve():
     
     def get_bezier_coeff(self):
         return self.p0 - 2*self.p1 + self.p2, 2*(self.p1-self.p0), self.p0
+
+    def get_end_line(self):
+        

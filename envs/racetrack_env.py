@@ -45,11 +45,32 @@ class RacetrackEnv(gym.Env):
 
     def d2arc(self):
         # returns a distance form self.obs to the nearest point on self.cur_arc
-        # function for distance squared is D(t) = (B(t) + P)^2 where B is the
+        # function for distance squared is D(t) = (B(t) - P)^2 where B is the
         # bezier curve and P is the position of the car. The derivative is cubic
-        # which has a closed solution.
-        # B(t) = At^2 + Bt + C
+        # and thats already solved easy
+        # B(t) = At^2 + Bt + C, D(t) = ( At^2 + Bt + C - P )^2
         A, B, C = self.cur_arc.get_bezier_coeff()
+        dCP = C - self.pos[:2]
+
+        dD_coeff = [
+            4*np.dot(A,A),
+            6*np.dot(A,B),
+            2*(2*np.dot(A,dCP) + np.dot(B,B)),
+            2*np.dot(B,dCP)
+        ]
+        roots = np.roots(dD_coeff)
+        real_roots = roots[np.isreal(roots)].real
+
+        # restrict search to roots on t in [0 1]
+        restricted_real_roots = np.concatenate([real_roots[(real_roots>=0) & (real_roots<=1)], [0.0, 1.0]])
+        # get nearest x,y points
+        nearest_points = self.cur_arc.get_bezier(restricted_real_roots)
+        # get distances to those points
+        dist_to_arc = np.linalg.norm(nearest_points - self.pos[:2], axis=1)
+        # solving D'(t) for zero may false positive from local minima, take absolute min distance.
+        mindex = np.argmin(dist_to_arc) # min + index = mindex
+
+        return dist_to_arc[mindex] # return B(t)
 
 
     def reset(self, seed=None, options=None):
@@ -67,7 +88,9 @@ class RacetrackEnv(gym.Env):
         self.cur_arc = BezierCurve(self.waypoints[self.cur_waypt], self.waypoints[(self.cur_waypt+1)%len(self.waypoints)])
 
         # car at start (initial position)
+        # hey fix this
         self.pos = np.array([100, 500, 90, 0, 0], dtype=np.float32)
+        self.prev_pos = self.pos
 
         obs = self._getObs()
         info = {}
@@ -83,7 +106,7 @@ class RacetrackEnv(gym.Env):
             self.pos[1] + self.pos[2]*np.sin(self.pos[2])*self.ts
             self.pos[2] + action[0]*self.ts
             self.pos[2] + action[1]*self.ts
-            
+            self.d2arc()
         ])
 
         # obs = 
