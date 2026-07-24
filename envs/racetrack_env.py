@@ -13,26 +13,30 @@ class RacetrackEnv(gym.Env):
         # load track data from file
         # a track is defined as a set of ordered vectors that make the centerline and a track
         # radius that gives it width. out of bounds is calculated via distance to centerline
+        # possible to establish a variable radius, maybe later
         with open("tracks/track_list.yaml") as fpath:
             data = yaml.safe_load(fpath)
-        my_track = data.get(track_name) # this might cause type issues. maybe cast?
-        self.waypoints = my_track.get("waypoints") # all track waypoints
-        self.r_track = my_track.get("radius") # track radius
+        my_track = data.get(track_name)             # this might cause type issues. maybe cast?
+        self.waypoints = my_track.get("waypoints")  # all track waypoints
+        self.r_track = my_track.get("radius")       # track radius
 
 
-        # observation space [x, y, speed, heading, distance_from_centerline]
+        # observation space [x, y, heading, speed, distance_from_centerline]
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32)
-        # action space [throttle, steer]
+        # action space [steer, throttle]
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
 
         # constants
-        self.ts = 0.1 # time step
-        self.max_spd = 1
-        self.max_accel = 1 # max throttle, in essence
-        self.max_turn = 1 # both ways
-        self.max_dturn = 1 # max heading derivative
+        self.ts = 0.1       # time step
+        self.max_spd = 1    # use ur eyes 
+        self.max_accel = 1  # max throttle, in essence
+        self.max_turn = 1   # both ways
+        self.max_dturn = 1  # max heading derivative
 
-        self.cur_waypt = 0 # the index of the waypoint that corresponds to the start of the current arc
+        # not constants, just initializing in case of fuckery
+        self.cur_waypt = 0  # the index of the waypoint that corresponds to the start of the current arc
+        self.steps = 0      # total step count
+        self.cur_arc = None
         # the current arc is the one that the car will measure distance to
         # whether or not the car is within the distance indicated by the radius determines if the 
         # car is within track boundaries
@@ -40,6 +44,7 @@ class RacetrackEnv(gym.Env):
 
     def _getObs(self):
         # returns self.pos. seems kinda redundant but whatever
+        # can change if the obs space structure ever changes
         return self.pos
     
 
@@ -70,7 +75,7 @@ class RacetrackEnv(gym.Env):
         # solving D'(t) for zero may false positive from local minima, take absolute min distance.
         mindex = np.argmin(dist_to_arc) # min + index = mindex
 
-        return dist_to_arc[mindex] # return B(t)
+        return dist_to_arc[mindex] # return distance to B(t*)
 
 
     def reset(self, seed=None, options=None):
@@ -88,8 +93,8 @@ class RacetrackEnv(gym.Env):
         self.cur_arc = BezierCurve(self.waypoints[self.cur_waypt], self.waypoints[(self.cur_waypt+1)%len(self.waypoints)])
 
         # car at start (initial position)
-        # hey fix this
-        self.pos = np.array([100, 500, 90, 0, 0], dtype=np.float32)
+        # initial position is the first waypoint
+        self.pos = np.array(np.concatenate(self.self.waypoints[self.cur_waypt], [0, 0]), dtype=np.float32)
         self.prev_pos = self.pos
 
         obs = self._getObs()
@@ -101,19 +106,24 @@ class RacetrackEnv(gym.Env):
         # update state w/ action, compute reward
         # lets just say tentatively t_s = 0.01s
         # [ x += speed*cos(heading)*ts ]
+        # state: [x, y, heading, speed, dist_2_curve]
+        # action: [steering, throttle]
         self.pos = np.array([
-            self.pos[0] + self.pos[2]*np.cos(self.pos[2])*self.ts
-            self.pos[1] + self.pos[2]*np.sin(self.pos[2])*self.ts
-            self.pos[2] + action[0]*self.ts
-            self.pos[2] + action[1]*self.ts
+            self.pos[0] + self.pos[3]*np.cos(self.pos[2])*self.ts,
+            self.pos[1] + self.pos[3]*np.sin(self.pos[2])*self.ts,
+            self.pos[2] + action[0]*self.ts,
+            self.pos[3] + action[1]*self.ts,
             self.d2arc()
         ])
+        obs = self._getObs()
 
-        # obs = 
         # reward: negative constant at every step, incentivise finishing faster
         reward = -self.ts
+
         # check for termination conditions
         # termination can occur either from out of bounds or finishing the race
+        
+
         #terminated, truncated, info = 
         return obs, reward, terminated, truncated, info
     
