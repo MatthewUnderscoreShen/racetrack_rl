@@ -36,6 +36,7 @@ class BezierCurve():
         if not (t > 0 and s < 0):
             raise ValueError("yeah uhh you need a 3rd order spline for this")
 
+
     # for t in [0 1]
     def get_bezier(self, t):
         t = np.asarray(t, dtype=float)
@@ -52,5 +53,15 @@ class BezierCurve():
     def get_bezier_coeff(self):
         return self.p0 - 2*self.p1 + self.p2, 2*(self.p1-self.p0), self.p0
 
+
+    # checks which side of the end line the current position is on
+    # for incrementing curves. returns a boolean (past or not past)
     def check_end_line(self, pos):
+        # the checkpoint line that separates curves is perpendicular
+        # to the heading of the end waypoint. thus, determining whether the car
+        # is past the checkpoint can just be done by checking if the angle of 
+        # end waypoint to current position is +/- 90deg from the end waypoint
+        # heading. some limit is going to need to be set on distance to ensure
+        # that a false positive isnt triggered by the car's position being very 
+        # far away.
         
