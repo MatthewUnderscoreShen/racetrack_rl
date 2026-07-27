@@ -64,4 +64,4 @@ class BezierCurve():
         # heading. some limit is going to need to be set on distance to ensure
         # that a false positive isnt triggered by the car's position being very 
         # far away.
-        
+        if 
