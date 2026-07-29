@@ -5,10 +5,12 @@ import numpy as np
 # Quadratic only (for now)
 class BezierCurve():
 
-    def __init__(self, p0, p1):
+    def __init__(self, p0, p1, r):
 
         self.p0 = np.asarray(p0[:2], dtype=float)
         self.p1 = np.asarray(p1[:2], dtype=float)
+        self.r = r
+        self.p1_head = p1[2]    # for checkpoints
 
         # arbitrarily define two headings as "too close"
         # straight line will be drawn instead of curve
@@ -57,11 +59,17 @@ class BezierCurve():
     # checks which side of the end line the current position is on
     # for incrementing curves. returns a boolean (past or not past)
     def check_end_line(self, pos):
-        # the checkpoint line that separates curves is perpendicular
-        # to the heading of the end waypoint. thus, determining whether the car
-        # is past the checkpoint can just be done by checking if the angle of 
-        # end waypoint to current position is +/- 90deg from the end waypoint
-        # heading. some limit is going to need to be set on distance to ensure
-        # that a false positive isnt triggered by the car's position being very 
-        # far away.
-        if 
+        # Calculate whether the car is close enough to the checkpoint line
+        # "close enough" is arbitrary lol
+        # Make a square of length r around the center of the checkpoint
+        # Automatically returns a false for checkpoint checks if car is too far
+        if np.max(np.abs(pos - self.p1)) > self.r:
+            return False
+
+        # Calculate whether the car is past the line or not.
+        # given the way the dot product works, you can take a normal vector from
+        # the heading of the end waypoint, and take the dot with the vector of
+        # end waypoint to car position. The sign will be positive if the car is
+        # past the line.
+        p1_norm = np.array([np.cos(self.p1_head), np.sin(self.p1_head)])
+        return np.dot(pos - self.p1, p1_norm) >= 0
