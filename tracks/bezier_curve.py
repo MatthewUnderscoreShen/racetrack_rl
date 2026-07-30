@@ -11,6 +11,10 @@ class BezierCurve():
         self.p1 = np.asarray(p1[:2], dtype=float)
         self.r = r
         self.p1_head = p1[2]    # for checkpoints
+        # rotational transformation matrix for rotating a vector to
+        # be checked by square.
+        self.TR = np.array([[np.cos(self.p1_head), np.sin(self.p1_heads)],
+                            [-np.sin(self.p1_head), np.cos(self.p1_head)]])
 
         # arbitrarily define two headings as "too close"
         # straight line will be drawn instead of curve
@@ -56,20 +60,23 @@ class BezierCurve():
         return self.p0 - 2*self.p1 + self.p2, 2*(self.p1-self.p0), self.p0
 
 
-    # checks which side of the end line the current position is on
-    # for incrementing curves. returns a boolean (past or not past)
-    def check_end_line(self, pos):
+    def check_end_distance(self, pos):
         # Calculate whether the car is close enough to the checkpoint line
         # "close enough" is arbitrary lol
         # Make a square of length r around the center of the checkpoint
-        # Automatically returns a false for checkpoint checks if car is too far
+        # Aligns square with end waypoint heading.
+        # Returns false for checkpoint checks if car is too far
         if np.max(np.abs(pos - self.p1)) > self.r:
             return False
 
+
+    # checks which side of the end line the current position is on
+    # for incrementing curves. returns the dot product, check happens in racetrack_env
+    def check_end_line(self, pos):
         # Calculate whether the car is past the line or not.
         # given the way the dot product works, you can take a normal vector from
         # the heading of the end waypoint, and take the dot with the vector of
         # end waypoint to car position. The sign will be positive if the car is
         # past the line.
         p1_norm = np.array([np.cos(self.p1_head), np.sin(self.p1_head)])
-        return np.dot(pos - self.p1, p1_norm) >= 0
+        return np.dot(pos - self.p1, p1_norm)
