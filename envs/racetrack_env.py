@@ -20,6 +20,12 @@ class RacetrackEnv(gym.Env):
         self.waypoints = my_track.get("waypoints")  # all track waypoints
         self.r_track = my_track.get("radius")       # track radius
 
+        # initalize arcs/curves into a list
+        self.n_pts = len(self.waypoints) # number of total waypoints
+        self.arcs = []
+        for point, i in zip(self.waypoints, range(len(self.waypoints))):
+            self.arcs.append(BezierCurve(point, self.waypoints[(i+1)%self.n_pts])) # wrap last point to 1st point
+
 
         # observation space [x, y, heading, speed, distance_from_centerline]
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32)
@@ -34,9 +40,9 @@ class RacetrackEnv(gym.Env):
         self.max_dturn = 1  # max heading derivative
 
         # not constants, just initializing in case of fuckery
-        self.cur_waypt = 0  # the index of the waypoint that corresponds to the start of the current arc
+        self.cur_waypt = 0  # arc index
         self.steps = 0      # total step count
-        self.cur_arc = None
+        self.cur_arc = self.arcs[self.cur_waypt]
         # the current arc is the one that the car will measure distance to
         # whether or not the car is within the distance indicated by the radius determines if the 
         # car is within track boundaries
@@ -90,11 +96,19 @@ class RacetrackEnv(gym.Env):
         # since the current waypoint was just initialized to 0, this technically could be hard coded,
         # but just in case there's only 1 point (circular track), it's implemented w/ variables
         # that said the 2nd order bezier curve calculation probably can't handle the 1 waypoint case anyways
-        self.cur_arc = BezierCurve(self.waypoints[self.cur_waypt], self.waypoints[(self.cur_waypt+1)%len(self.waypoints)])
+        self.cur_arc = self.arcs[self.cur_waypt]
+
+        # for checkpoints
+        self.cur_check = self.cur_arc.check_end_distance(self.pos[:3]) & self.cur_arc.check_end_line(self.pos[:3])
+        self.last_check = self.cur_check
+
+        # finish check
+        self.is_race_complete = False
+        self.is_out = False
 
         # car at start (initial position)
         # initial position is the first waypoint
-        self.pos = np.array(np.concatenate(self.self.waypoints[self.cur_waypt], [0, 0]), dtype=np.float32)
+        self.pos = np.array(np.concatenate(self.waypoints[self.cur_waypt], [0, 0]), dtype=np.float32)
         self.prev_pos = self.pos
 
         obs = self._getObs()
@@ -116,6 +130,16 @@ class RacetrackEnv(gym.Env):
             self.d2arc()
         ])
         obs = self._getObs()
+
+        # check to see if car is onto next arc
+        self.cur_check = self.cur_arc.check_end_distance(self.pos[:3]) & self.cur_arc.check_end_line(self.pos[:3])
+        if self.last_check == False & self.cur_check == True:
+            self.cur_waypt += 1
+            if self.cur_waypt >= self.n_pts:
+                self.is_race_complete = True
+            else: # prevent trying to get an arc that doesnt exist
+                self.cur_arc = self.arcs[self.cur_waypt]
+        self.last_check = self.cur_check
 
         # reward: negative constant at every step, incentivise finishing faster
         reward = -self.ts

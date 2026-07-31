@@ -13,7 +13,7 @@ class BezierCurve():
         self.p1_head = p1[2]    # for checkpoints
         # rotational transformation matrix for rotating a vector to
         # be checked by square.
-        self.TR = np.array([[np.cos(self.p1_head), np.sin(self.p1_heads)],
+        self.TR = np.array([[np.cos(self.p1_head), np.sin(self.p1_head)],
                             [-np.sin(self.p1_head), np.cos(self.p1_head)]])
 
         # arbitrarily define two headings as "too close"
@@ -55,6 +55,7 @@ class BezierCurve():
             return np.array(self.p0 + t*(self.p1 - self.p0))
         
         return (1-t)*((1-t)*self.p0 + t*self.p1) + t*((1-t)*self.p1 + t*self.p2)
+
     
     def get_bezier_coeff(self):
         return self.p0 - 2*self.p1 + self.p2, 2*(self.p1-self.p0), self.p0
@@ -66,8 +67,9 @@ class BezierCurve():
         # Make a square of length r around the center of the checkpoint
         # Aligns square with end waypoint heading.
         # Returns false for checkpoint checks if car is too far
-        if np.max(np.abs(pos - self.p1)) > self.r:
+        if np.max(np.abs(np.matmul(self.TR, pos - self.p1))) > self.r:
             return False
+        return True
 
 
     # checks which side of the end line the current position is on
@@ -78,5 +80,5 @@ class BezierCurve():
         # the heading of the end waypoint, and take the dot with the vector of
         # end waypoint to car position. The sign will be positive if the car is
         # past the line.
-        p1_norm = np.array([np.cos(self.p1_head), np.sin(self.p1_head)])
+        p1_norm = self.TR[0]    # reusing the rotational matrix
         return np.dot(pos - self.p1, p1_norm)
