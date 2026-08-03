@@ -132,13 +132,18 @@ class RacetrackEnv(gym.Env):
         obs = self._getObs()
 
         # check to see if car is onto next arc
+        # this check = check distance and check pass
         self.cur_check = self.cur_arc.check_end_distance(self.pos[:3]) & self.cur_arc.check_end_line(self.pos[:3])
+        # if previous check false and this check true, 
         if self.last_check == False & self.cur_check == True:
+            # increment to next arc
             self.cur_waypt += 1
+            # if that was the last arc, race is complete
             if self.cur_waypt >= self.n_pts:
                 self.is_race_complete = True
-            else: # prevent trying to get an arc that doesnt exist
+            else: # otherwise go to the next arc
                 self.cur_arc = self.arcs[self.cur_waypt]
+        # update last check
         self.last_check = self.cur_check
 
         # reward: negative constant at every step, incentivise finishing faster
@@ -146,7 +151,16 @@ class RacetrackEnv(gym.Env):
 
         # check for termination conditions
         # termination can occur either from out of bounds or finishing the race
-        
+        if self.is_out:
+            reward = -1000
+            terminated = True
+        if self.is_race_complete:
+            terminated = True
+
+        # truncation should only happen if there are too many steps
+        if self.steps > 1000000 # arbitrary number
+            reward = -1000
+            truncated = True
 
         #terminated, truncated, info = 
         return obs, reward, terminated, truncated, info
