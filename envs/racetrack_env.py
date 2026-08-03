@@ -14,6 +14,7 @@ class RacetrackEnv(gym.Env):
         # a track is defined as a set of ordered vectors that make the centerline and a track
         # radius that gives it width. out of bounds is calculated via distance to centerline
         # possible to establish a variable radius, maybe later
+        # yaml stores heading in deg, will convert to rad in bezier_curve
         with open("tracks/track_list.yaml") as fpath:
             data = yaml.safe_load(fpath)
         my_track = data.get(track_name)             # this might cause type issues. maybe cast?
@@ -33,11 +34,11 @@ class RacetrackEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
 
         # constants
-        self.ts = 0.1       # time step
-        self.max_spd = 1    # use ur eyes 
-        self.max_accel = 1  # max throttle, in essence
-        self.max_turn = 1   # both ways
-        self.max_dturn = 1  # max heading derivative
+        self.ts = 0.1       # time step (s)
+        self.max_spd = 1    # use ur eyes (m/s)
+        self.max_accel = 1  # max throttle, in essence (m/s^2)
+        self.max_turn = 1   # both ways (rad/s)
+        self.max_dturn = 1  # max heading derivative (rad)
 
         # not constants, just initializing in case of fuckery
         self.cur_waypt = 0  # arc index
@@ -161,6 +162,9 @@ class RacetrackEnv(gym.Env):
         if self.steps > 1000000 # arbitrary number
             reward = -1000
             truncated = True
+
+        # throw stuff into info
+        info = {}
 
         #terminated, truncated, info = 
         return obs, reward, terminated, truncated, info

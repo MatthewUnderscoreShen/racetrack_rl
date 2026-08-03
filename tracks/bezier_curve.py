@@ -5,7 +5,9 @@ import numpy as np
 # Quadratic only (for now)
 class BezierCurve():
 
-    def __init__(self, p0, p1, r):
+    def __init__(self, p0, p1, r): 
+        # note: yaml file stores heading in deg. convert here
+        p0[2], p1[2] = np.deg2rad(p0[2]), np.deg2rad(p1[2])
 
         self.p0 = np.asarray(p0[:2], dtype=float)
         self.p1 = np.asarray(p1[:2], dtype=float)
