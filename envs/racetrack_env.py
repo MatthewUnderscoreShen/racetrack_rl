@@ -27,18 +27,19 @@ class RacetrackEnv(gym.Env):
         for point, i in zip(self.waypoints, range(len(self.waypoints))):
             self.arcs.append(BezierCurve(point, self.waypoints[(i+1)%self.n_pts])) # wrap last point to 1st point
 
+        # constants
+        self.ts = 0.1       # time step (s)
+        self.max_spd = 10    # use ur eyes (m/s)
+        self.max_accel = 4  # max throttle, in essence (m/s^2)
+        self.max_turn = np.pi/3   # both ways (rad)
+        self.max_dturn = np.pi  # max heading derivative (rad/s)
 
         # observation space [x, y, heading, speed, distance_from_centerline]
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32)
         # action space [steer, throttle]
-        self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-
-        # constants
-        self.ts = 0.1       # time step (s)
-        self.max_spd = 10    # use ur eyes (m/s)
-        self.max_accel = 2  # max throttle, in essence (m/s^2)
-        self.max_turn = np.pi/3   # both ways (rad)
-        self.max_dturn = np.pi  # max heading derivative (rad/s)
+        self.action_space = gym.spaces.Box( low=np.array([-self.max_dturn, -self.max_accel]),
+                                            high=np.array([self.max_dturn, self.max_accel]), 
+                                            shape=(2,), dtype=np.float32)
 
         # not constants, just initializing in case of fuckery
         self.cur_waypt = 0  # arc index
@@ -129,6 +130,10 @@ class RacetrackEnv(gym.Env):
             self.pos[2] + action[0]*self.ts,
             self.pos[3] + action[1]*self.ts,
             self.d2arc()
+        ])
+        # apply constraints
+        self.pos = np.array([
+            np.sign(self.pos[0])
         ])
         obs = self._getObs()
 
