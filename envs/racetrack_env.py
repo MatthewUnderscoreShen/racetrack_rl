@@ -35,10 +35,10 @@ class RacetrackEnv(gym.Env):
 
         # constants
         self.ts = 0.1       # time step (s)
-        self.max_spd = 1    # use ur eyes (m/s)
-        self.max_accel = 1  # max throttle, in essence (m/s^2)
-        self.max_turn = 1   # both ways (rad/s)
-        self.max_dturn = 1  # max heading derivative (rad)
+        self.max_spd = 10    # use ur eyes (m/s)
+        self.max_accel = 2  # max throttle, in essence (m/s^2)
+        self.max_turn = np.pi/3   # both ways (rad)
+        self.max_dturn = np.pi  # max heading derivative (rad/s)
 
         # not constants, just initializing in case of fuckery
         self.cur_waypt = 0  # arc index
