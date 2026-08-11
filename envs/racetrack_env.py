@@ -27,15 +27,17 @@ class RacetrackEnv(gym.Env):
         for point, i in zip(self.waypoints, range(len(self.waypoints))):
             self.arcs.append(BezierCurve(point, self.waypoints[(i+1)%self.n_pts])) # wrap last point to 1st point
 
-        # constants
+        # constants for physical constraints loosely based on a honda accord
         self.ts = 0.1       # time step (s)
-        self.max_spd = 10    # use ur eyes (m/s)
-        self.max_accel = 4  # max throttle, in essence (m/s^2)
+        self.max_spd = 120 * (1609.34/3600)    # 120mph -> 53.6m/s
+        self.max_a_fwd = (60/8.5)*(1609.34/3600)  # max forward throttle 0->60mph in 8.5s -> 7.059mph/s -> 3.156m/s^2
         self.max_turn = np.pi/3   # both ways (rad)
-        self.max_dturn = np.pi  # max heading derivative (rad/s)
+        self.max_dturn = np.pi*2/3  # max heading derivative (rad/s)
+        self.max_a_fric = 9.8      # mu_f    * g = max accel from friction (m/s^2) (tire limit)
+        self.wb = 2.829 # wheelbase (m) (bike model) (honda accord if it was a bike lol) (long ass bike)
 
-        # observation space [x, y, heading, speed, distance_from_centerline]
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32)
+        # observation space [x, y, heading, steering angle, speed, distance_from_centerline]
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
         # action space [steer, throttle]
         self.action_space = gym.spaces.Box( low=np.array([-self.max_dturn, -self.max_accel]),
                                             high=np.array([self.max_dturn, self.max_accel]), 
@@ -124,6 +126,26 @@ class RacetrackEnv(gym.Env):
         # [ x += speed*cos(heading)*ts ]
         # state: [x, y, heading, speed, dist_2_curve]
         # action: [steering, throttle]
+
+        # calculate first, then assign to self.pos
+        # calculate new heading (#2)
+        th = self.pos[2] + action[0]*self.ts
+        th = np.sign(th)*max(np.abs(th), self.max_turn)
+
+        # calculate acceleration w/ friction constraints
+        # a = [heading accel, lateral accel = v^2/r]
+        a = np.array([action[1], self.pos[3]**2*np.sin(self.pos[2])/self.wb])
+        if a[0] > 0:    # acceleration vector
+            limit = (a[0]/self.max_a_fwd)**2 + (a[1]/self.max_a_fric)**2  # forward accel limit
+        else:
+            limit = (a[0]/self.max_a_fric)**2 + (a[1]/self.max_a_fric)**2 # backward accel limit
+        if limit > 1.0: # normalize to limit if above limit
+            scale = 1 / np.sqrt(limit)
+
+
+        dth = self.pos[2] + action[0]*self.ts
+        dv = self.pos[3] + action[1]*self.ts    # technically dv should be d_spd but whatever
+
         self.pos = np.array([
             self.pos[0] + self.pos[3]*np.cos(self.pos[2])*self.ts,
             self.pos[1] + self.pos[3]*np.sin(self.pos[2])*self.ts,
@@ -131,10 +153,9 @@ class RacetrackEnv(gym.Env):
             self.pos[3] + action[1]*self.ts,
             self.d2arc()
         ])
-        # apply constraints
-        self.pos = np.array([
-            np.sign(self.pos[0])
-        ])
+        # apply constraints, accel contraints built into action space
+        self.pos[2] = np.sign(self.pos[2])*max(np.abs(self.pos[2]), self.max_turn)
+        self.pos[3] = np.sign(self.pos[3])*max(np.abs(self.pos[3]), self.max_spd)
         obs = self._getObs()
 
         # check to see if car is onto next arc
