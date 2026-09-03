@@ -56,12 +56,17 @@ class BezierCurve():
         if self.is_too_parallel:
             return np.array(self.p0 + t*(self.p1 - self.p0))
         
-        return (1-t)*((1-t)*self.p0 + t*self.p1) + t*((1-t)*self.p1 + t*self.p2)
+        # READ THIS NO MATTER WHAT: "p2" is actually point p1 on wikipedia
+        return (1-t)*((1-t)*self.p0 + t*self.p2) + t*((1-t)*self.p2 + t*self.p1)
 
     
     def get_bezier_coeff(self):
-        return self.p0 - 2*self.p1 + self.p2, 2*(self.p1-self.p0), self.p0
+        # derivative wrt t
+        # p0 = start, p1 = end, p2 = middle
+        return self.p0 - 2*self.p2 + self.p1, 2*(self.p2-self.p0), self.p0
 
+    def get_p2(self):
+        return self.p2
 
     def check_end_distance(self, pos):
         # Calculate whether the car is close enough to the checkpoint line

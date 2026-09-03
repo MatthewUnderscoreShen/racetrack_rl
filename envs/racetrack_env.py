@@ -39,8 +39,8 @@ class RacetrackEnv(gym.Env):
         # observation space [x, y, heading, steering angle, speed, distance_from_centerline]
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
         # action space [steer, throttle]
-        self.action_space = gym.spaces.Box( low=np.array([-self.max_dturn, -self.max_accel]),
-                                            high=np.array([self.max_dturn, self.max_accel]), 
+        self.action_space = gym.spaces.Box( low=np.array([-self.max_dturn, -self.max_a_fwd]),
+                                            high=np.array([self.max_dturn, self.max_a_fwd]), 
                                             shape=(2,), dtype=np.float32)
 
         # not constants, just initializing in case of fuckery
@@ -77,7 +77,7 @@ class RacetrackEnv(gym.Env):
         real_roots = roots[np.isreal(roots)].real
 
         # restrict search to roots on t in [0 1]
-        restricted_real_roots = np.concatenate([real_roots[(real_roots>=0) & (real_roots<=1)], [0.0, 1.0]])
+        restricted_real_roots = np.concatenate((real_roots[(real_roots>=0) & (real_roots<=1)], [0.0, 1.0]))
         # get nearest x,y points
         nearest_points = self.cur_arc.get_bezier(restricted_real_roots)
         # get distances to those points
@@ -94,6 +94,10 @@ class RacetrackEnv(gym.Env):
         # initialize variables
         self.steps = 0 # reset total step count
         self.cur_waypt = 0 # index of the waypoint corresponding to the start of the current arc
+        # car at start (initial position)
+        # initial position is the first waypoint
+        self.pos = np.array(np.concatenate((self.waypoints[self.cur_waypt], [0, 0])), dtype=np.float32)
+        self.prev_pos = self.pos
 
         # the current arc is the one that the car measures distance to centerline from
         # the modulo thing is to wrap the last point back to the first point
@@ -103,17 +107,12 @@ class RacetrackEnv(gym.Env):
         self.cur_arc = self.arcs[self.cur_waypt]
 
         # for checkpoints
-        self.cur_check = self.cur_arc.check_end_distance(self.pos[:3]) & self.cur_arc.check_end_line(self.pos[:3])
+        self.cur_check = self.cur_arc.check_end_distance(self.pos[:2]) & self.cur_arc.check_end_line(self.pos[:2])
         self.last_check = self.cur_check
 
         # finish check
         self.is_race_complete = False
         self.is_out = False
-
-        # car at start (initial position)
-        # initial position is the first waypoint
-        self.pos = np.array(np.concatenate(self.waypoints[self.cur_waypt], [0, 0]), dtype=np.float32)
-        self.prev_pos = self.pos
 
         obs = self._getObs()
         info = {}
@@ -130,7 +129,7 @@ class RacetrackEnv(gym.Env):
         # calculate first, then assign to self.pos
         # calculate new heading (#2)
         th = self.pos[2] + action[0]*self.ts
-        th = np.sign(th)*max(np.abs(th), self.max_turn)
+        th = np.sign(th)*min(np.abs(th), self.max_turn)
 
         # calculate acceleration w/ friction constraints
         # a = [heading accel, lateral accel = v^2/r]
@@ -141,7 +140,11 @@ class RacetrackEnv(gym.Env):
             limit = (a[0]/self.max_a_fric)**2 + (a[1]/self.max_a_fric)**2 # backward accel limit
         if limit > 1.0: # normalize to limit if above limit
             scale = 1 / np.sqrt(limit)
-
+            a *= scale
+        
+        # the acceleration changes the velocity, so calculate velocity using the constrained acceleration
+        v_long = self.pos[3] + a[0]*self.t_s
+        v_lat = 
 
         dth = self.pos[2] + action[0]*self.ts
         dv = self.pos[3] + action[1]*self.ts    # technically dv should be d_spd but whatever
@@ -154,15 +157,15 @@ class RacetrackEnv(gym.Env):
             self.d2arc()
         ])
         # apply constraints, accel contraints built into action space
-        self.pos[2] = np.sign(self.pos[2])*max(np.abs(self.pos[2]), self.max_turn)
-        self.pos[3] = np.sign(self.pos[3])*max(np.abs(self.pos[3]), self.max_spd)
+        self.pos[2] = np.sign(self.pos[2])*min(np.abs(self.pos[2]), self.max_turn)
+        self.pos[3] = np.sign(self.pos[3])*min(np.abs(self.pos[3]), self.max_spd)
         obs = self._getObs()
 
         # check to see if car is onto next arc
         # this check = check distance and check pass
-        self.cur_check = self.cur_arc.check_end_distance(self.pos[:3]) & self.cur_arc.check_end_line(self.pos[:3])
+        self.cur_check = self.cur_arc.check_end_distance(self.pos[:2]) & self.cur_arc.check_end_line(self.pos[:2])
         # if previous check false and this check true, 
-        if self.last_check == False & self.cur_check == True:
+        if (not self.last_check) & (self.cur_check):
             # increment to next arc
             self.cur_waypt += 1
             # if that was the last arc, race is complete
@@ -185,7 +188,7 @@ class RacetrackEnv(gym.Env):
             terminated = True
 
         # truncation should only happen if there are too many steps
-        if self.steps > 1000000 # arbitrary number
+        if self.steps > 1000000: # arbitrary number
             reward = -1000
             truncated = True
 
