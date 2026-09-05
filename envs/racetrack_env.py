@@ -19,25 +19,27 @@ class RacetrackEnv(gym.Env):
             data = yaml.safe_load(fpath)
         my_track = data.get(track_name)             # this might cause type issues. maybe cast?
         self.waypoints = my_track.get("waypoints")  # all track waypoints
+        for point in self.waypoints:                # deg 2 rad all points first
+            point[2] = np.deg2rad(point[2])
         self.r_track = my_track.get("radius")       # track radius
 
         # initalize arcs/curves into a list
-        self.n_pts = len(self.waypoints) # number of total waypoints
+        self.n_pts = len(self.waypoints)            # number of total waypoints
         self.arcs = []
         for point, i in zip(self.waypoints, range(len(self.waypoints))):
             self.arcs.append(BezierCurve(point, self.waypoints[(i+1)%self.n_pts])) # wrap last point to 1st point
 
         # constants for physical constraints loosely based on a honda accord
-        self.ts = 0.1       # time step (s)
-        self.max_spd = 120 * (1609.34/3600)    # 120mph -> 53.6m/s
-        self.max_a_fwd = (60/8.5)*(1609.34/3600)  # max forward throttle 0->60mph in 8.5s -> 7.059mph/s -> 3.156m/s^2
-        self.max_turn = np.pi/3   # both ways (rad)
-        self.max_dturn = np.pi*2/3  # max heading derivative (rad/s)
-        self.max_a_fric = 9.8      # mu_f    * g = max accel from friction (m/s^2) (tire limit)
-        self.wb = 2.829 # wheelbase (m) (bike model) (honda accord if it was a bike lol) (long ass bike)
+        self.ts = 0.1                           # time step (s)
+        self.max_spd = 120 * (1609.34/3600)     # 120mph -> 53.6m/s
+        self.max_a_fwd = (60/8.5)*(1609.34/3600) # max forward throttle 0->60mph in 8.5s -> 7.059mph/s -> 3.156m/s^2
+        self.max_turn = np.pi/3                 # furthest wheel can turn both ways (rad)
+        self.max_dturn = np.pi*2/3              # max heading derivative (fastest spin) (rad/s)
+        self.max_a_fric = 9.8                   # mu_f*g = max accel from friction (m/s^2) (tire limit)
+        self.wb = 2.829                         # wheelbase (m) (bike model)
 
-        # observation space [x, y, heading, steering angle, speed, distance_from_centerline]
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
+        # observation space [x, y, heading, v_x, v_y, steering_angle, distance_from_centerline]
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(7,), dtype=np.float32)
         # action space [steer, throttle]
         self.action_space = gym.spaces.Box( low=np.array([-self.max_dturn, -self.max_a_fwd]),
                                             high=np.array([self.max_dturn, self.max_a_fwd]), 
@@ -86,6 +88,21 @@ class RacetrackEnv(gym.Env):
         mindex = np.argmin(dist_to_arc) # min + index = mindex
 
         return dist_to_arc[mindex] # return distance to B(t*)
+
+
+    # given the obs and action at the start of the timestep, compute the new position
+    # use self.pos as obs. Do not set self.pos in this function
+    # obs: [x, y, heading(th), dx, dy, steering_angle(phi), distance_from_centerline]
+    # action: [steering, throttle]
+    def update_pos(self, action):
+        steering, throttle = action[0], action[1]
+
+        phi = self.pos[5] + steering*self.ts                # phi+ = phi + d_phi*dt
+        phi = np.sign(phi)*min(np.abs(phi), self.max_turn)  # apply max constraint
+
+
+
+        return (x, y, th, dx, dy, phi, dist2c)
 
 
     def reset(self, seed=None, options=None):

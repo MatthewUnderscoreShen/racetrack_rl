@@ -1,0 +1,6 @@
+Finish test cases for bezier_curve to verify functionality
+
+Complete racetrack_env
+    restructure: place physics and whatnot into functions so they can be tested.
+        or something like that
+    physics not even done yet

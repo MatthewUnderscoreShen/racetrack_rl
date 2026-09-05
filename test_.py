@@ -20,7 +20,25 @@ def test_Bezier():
 
     coeff = curve.get_bezier_coeff()    # bezier coeffs
 
-    d_test_pts = ((0,0), (2,1), (-1000,1000), (1.999,0.999))
+    d_test_pts = (                      # distance to end point (check radius r)
+        (0,0),                          # start point (fail)
+        (2,1),                          # end point (pass)
+        (-1000,1000),                   # really far (fail)
+        (1.999,0.999)                   # really close (pass)
+    )    
+
+    line_test_pts = (                   # line checks: - (before), 0 (on), + (after)
+        (0, 0),                         # start point (-)
+        (1.9, 1),                       # just before (-)
+        (2.1, 1),                       # just after (+)
+        (1.9, 0.5),                     # just before diagonal (-)
+        (2.1, 1.5),                     # just after diagonal (+)
+        (2, 1),                         # end point (0)
+        (2, 1.5),                       # end line diagonal (0)
+        (-1000, -1000),                 # really far before (-)
+        (1000, 1000),                   # really far after (+)
+        (2, -1000)                      # really far on (0)
+    )
 
 
     # Act
@@ -28,7 +46,8 @@ def test_Bezier():
         xy2[i,:] = curve.get_bezier(t[i])
     coeff_ans = ((2,-1), (0,2), (0,0))
 
-    d_test_ans = (True, False, False, True)
+    d_test_ans = (False, True, False, True)
+    line_test_ans = (-1, -1, 1, -1, 1, 0, 0, -1, 1, 0)
 
     
     # Assert
@@ -38,3 +57,5 @@ def test_Bezier():
         assert pytest.approx(q) == a
     for q, a in zip(d_test_pts, d_test_ans):
         assert curve.check_end_distance(q) == a     # (check_end_distance test)
+    for q, a in zip(line_test_pts, line_test_ans):
+        assert np.sign(curve.check_end_line(q)) == a # (check_end_line test)
