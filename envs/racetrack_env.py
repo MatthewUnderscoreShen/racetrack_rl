@@ -34,7 +34,7 @@ class RacetrackEnv(gym.Env):
         self.max_spd = 120 * (1609.34/3600)     # 120mph -> 53.6m/s
         self.max_a_fwd = (60/8.5)*(1609.34/3600) # max forward throttle 0->60mph in 8.5s -> 7.059mph/s -> 3.156m/s^2
         self.max_turn = np.pi/3                 # furthest wheel can turn both ways (rad)
-        self.max_dturn = np.pi*2/3              # max heading derivative (fastest spin) (rad/s)
+        self.max_dturn = 2*np.pi                # max heading derivative (fastest spin) (rad/s)
         self.max_a_fric = 9.8                   # mu_f*g = max accel from friction (m/s^2) (tire limit)
         self.wb = 2.829                         # wheelbase (m) (bike model)
 
@@ -55,9 +55,9 @@ class RacetrackEnv(gym.Env):
 
 
     def _getObs(self):
-        # returns self.pos. seems kinda redundant but whatever
+        # returns self.state. seems kinda redundant but whatever
         # can change if the obs space structure ever changes
-        return self.pos
+        return self.state
     
 
     def d2arc(self):
@@ -67,7 +67,7 @@ class RacetrackEnv(gym.Env):
         # and thats already solved easy
         # B(t) = At^2 + Bt + C, D(t) = ( At^2 + Bt + C - P )^2
         A, B, C = self.cur_arc.get_bezier_coeff()
-        dCP = C - self.pos[:2]
+        dCP = C - self.state[:2]
 
         dD_coeff = [
             4*np.dot(A,A),
@@ -83,7 +83,7 @@ class RacetrackEnv(gym.Env):
         # get nearest x,y points
         nearest_points = self.cur_arc.get_bezier(restricted_real_roots)
         # get distances to those points
-        dist_to_arc = np.linalg.norm(nearest_points - self.pos[:2], axis=1)
+        dist_to_arc = np.linalg.norm(nearest_points - self.state[:2], axis=1)
         # solving D'(t) for zero may false positive from local minima, take absolute min distance.
         mindex = np.argmin(dist_to_arc) # min + index = mindex
 
@@ -91,18 +91,34 @@ class RacetrackEnv(gym.Env):
 
 
     # given the obs and action at the start of the timestep, compute the new position
-    # use self.pos as obs. Do not set self.pos in this function
-    # obs: [x, y, heading(th), dx, dy, steering_angle(phi), distance_from_centerline]
+    # use self.state as obs. Do not set self.state in this function
+    # obs: [x, y, heading(th), spd, vel_heading(ome), steering_angle(phi), distance_from_centerline]
     # action: [steering, throttle]
     def update_pos(self, action):
         steering, throttle = action[0], action[1]
 
-        phi = self.pos[5] + steering*self.ts                # phi+ = phi + d_phi*dt
+        # steering angle (relative to vehicle heading)
+        phi = self.state[5] + steering*self.ts                # phi+ = phi + d_phi*dt
         phi = np.sign(phi)*min(np.abs(phi), self.max_turn)  # apply max constraint
 
+        # calculate lateral velocity relative to front wheel
+        ang_tire = self.state[2] + phi                        # tire absolute angle
+        v_lat = self.state[3]*np.sin(ang_tire - self.state[4]) # lateral velocity
+        v_long = self.state[3]*np.cos(ang_tire - self.state[4])# longitudinal velocity
 
+        # longitudinal and lateral acceleration
+        a = np.array([action[1], v_lat**2*np.sin(phi)/self.wb]) # a_lat = v_lat^2/r
+        if a[0] > 0:                                            # acceleration limits
+            limit = (a[0]/self.max_a_fwd)**2 + (a[1]/self.max_a_fric)**2  # forward accel limit
+        else:
+            limit = (a[0]/self.max_a_fric)**2 + (a[1]/self.max_a_fric)**2  # backwards accel limit
+        if limit > 1.0:                                         # constrain to limit
+            a *= 1 / np.sqrt(limit)
 
-        return (x, y, th, dx, dy, phi, dist2c)
+        # new v based on constrained acceleration
+        
+
+        return (x, y, th, v, ome, phi, dist2c)
 
 
     def reset(self, seed=None, options=None):
@@ -113,8 +129,8 @@ class RacetrackEnv(gym.Env):
         self.cur_waypt = 0 # index of the waypoint corresponding to the start of the current arc
         # car at start (initial position)
         # initial position is the first waypoint
-        self.pos = np.array(np.concatenate((self.waypoints[self.cur_waypt], [0, 0])), dtype=np.float32)
-        self.prev_pos = self.pos
+        self.state = np.array(np.concatenate((self.waypoints[self.cur_waypt], [0, 0])), dtype=np.float32)
+        self.prev_pos = self.state
 
         # the current arc is the one that the car measures distance to centerline from
         # the modulo thing is to wrap the last point back to the first point
@@ -124,7 +140,7 @@ class RacetrackEnv(gym.Env):
         self.cur_arc = self.arcs[self.cur_waypt]
 
         # for checkpoints
-        self.cur_check = self.cur_arc.check_end_distance(self.pos[:2]) & self.cur_arc.check_end_line(self.pos[:2])
+        self.cur_check = self.cur_arc.check_end_distance(self.state[:2]) & self.cur_arc.check_end_line(self.state[:2])
         self.last_check = self.cur_check
 
         # finish check
@@ -143,14 +159,14 @@ class RacetrackEnv(gym.Env):
         # state: [x, y, heading, speed, dist_2_curve]
         # action: [steering, throttle]
 
-        # calculate first, then assign to self.pos
+        # calculate first, then assign to self.state
         # calculate new heading (#2)
-        th = self.pos[2] + action[0]*self.ts
+        th = self.state[2] + action[0]*self.ts
         th = np.sign(th)*min(np.abs(th), self.max_turn)
 
         # calculate acceleration w/ friction constraints
         # a = [heading accel, lateral accel = v^2/r]
-        a = np.array([action[1], self.pos[3]**2*np.sin(self.pos[2])/self.wb])
+        a = np.array([action[1], self.state[3]**2*np.sin(self.state[2])/self.wb])
         if a[0] > 0:    # acceleration vector
             limit = (a[0]/self.max_a_fwd)**2 + (a[1]/self.max_a_fric)**2  # forward accel limit
         else:
@@ -160,27 +176,27 @@ class RacetrackEnv(gym.Env):
             a *= scale
         
         # the acceleration changes the velocity, so calculate velocity using the constrained acceleration
-        v_long = self.pos[3] + a[0]*self.t_s
+        v_long = self.state[3] + a[0]*self.t_s
         v_lat = 
 
-        dth = self.pos[2] + action[0]*self.ts
-        dv = self.pos[3] + action[1]*self.ts    # technically dv should be d_spd but whatever
+        dth = self.state[2] + action[0]*self.ts
+        dv = self.state[3] + action[1]*self.ts    # technically dv should be d_spd but whatever
 
-        self.pos = np.array([
-            self.pos[0] + self.pos[3]*np.cos(self.pos[2])*self.ts,
-            self.pos[1] + self.pos[3]*np.sin(self.pos[2])*self.ts,
-            self.pos[2] + action[0]*self.ts,
-            self.pos[3] + action[1]*self.ts,
+        self.state = np.array([
+            self.state[0] + self.state[3]*np.cos(self.state[2])*self.ts,
+            self.state[1] + self.state[3]*np.sin(self.state[2])*self.ts,
+            self.state[2] + action[0]*self.ts,
+            self.state[3] + action[1]*self.ts,
             self.d2arc()
         ])
         # apply constraints, accel contraints built into action space
-        self.pos[2] = np.sign(self.pos[2])*min(np.abs(self.pos[2]), self.max_turn)
-        self.pos[3] = np.sign(self.pos[3])*min(np.abs(self.pos[3]), self.max_spd)
+        self.state[2] = np.sign(self.state[2])*min(np.abs(self.state[2]), self.max_turn)
+        self.state[3] = np.sign(self.state[3])*min(np.abs(self.state[3]), self.max_spd)
         obs = self._getObs()
 
         # check to see if car is onto next arc
         # this check = check distance and check pass
-        self.cur_check = self.cur_arc.check_end_distance(self.pos[:2]) & self.cur_arc.check_end_line(self.pos[:2])
+        self.cur_check = self.cur_arc.check_end_distance(self.state[:2]) & self.cur_arc.check_end_line(self.state[:2])
         # if previous check false and this check true, 
         if (not self.last_check) & (self.cur_check):
             # increment to next arc

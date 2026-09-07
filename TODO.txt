@@ -1,6 +1,21 @@
+Currently: racetrack_env - update_pos
+
 Finish test cases for bezier_curve to verify functionality
 
 Complete racetrack_env
     restructure: place physics and whatnot into functions so they can be tested.
         or something like that
     physics not even done yet
+        acceleration limit:
+            in a new timestep, if the absolute angle of the wheel changes relative
+            to the absolute angle of the velocity, the wheel's friction needs to
+            work against a certain amount of lateral velocity. The amount of lateral
+            velocity that can be "absorbed" is determined by that blob circle.
+            Accleration is split into longitudinal and lateral, and that's relative
+            to front wheel angle
+        3 angles: vehicle heading, steering angle, and velocity heading.
+            steering angle is easy, velocity heading is arctan(dy/dx)
+            vehicle heading calculated via the angular velocity when rotating
+    
+    implicit euler methods:
+        y_n+1 = y_n + h*f(t_n+1, y_n+1), y' = f
