@@ -92,30 +92,33 @@ class RacetrackEnv(gym.Env):
 
     # given the obs and action at the start of the timestep, compute the new position
     # use self.state as obs. Do not set self.state in this function
-    # obs: [x, y, heading(th), spd, vel_heading(ome), steering_angle(phi), distance_from_centerline]
+    # obs: [x, y, heading(th), spd, v_heading(ome), steering_angle(phi), distance_from_centerline]
     # action: [steering, throttle]
     def update_pos(self, action):
         steering, throttle = action[0], action[1]
 
         # steering angle (relative to vehicle heading)
         phi = self.state[5] + steering*self.ts                # phi+ = phi + d_phi*dt
-        phi = np.sign(phi)*min(np.abs(phi), self.max_turn)  # apply max constraint
+        phi = np.sign(phi)*min(np.abs(phi), self.max_turn)    # apply max constraint
 
         # calculate lateral velocity relative to front wheel
-        ang_tire = self.state[2] + phi                        # tire absolute angle
+        ang_tire = self.state[2] + phi                         # tire absolute angle
         v_lat = self.state[3]*np.sin(ang_tire - self.state[4]) # lateral velocity
         v_long = self.state[3]*np.cos(ang_tire - self.state[4])# longitudinal velocity
 
         # longitudinal and lateral acceleration
-        a = np.array([action[1], v_lat**2*np.sin(phi)/self.wb]) # a_lat = v_lat^2/r
-        if a[0] > 0:                                            # acceleration limits
+        a = np.array([throttle, v_lat**2*np.sin(phi)/self.wb]) # a_lat = v_lat^2/r
+        if a[0] > 0:                                           # acceleration limits
             limit = (a[0]/self.max_a_fwd)**2 + (a[1]/self.max_a_fric)**2  # forward accel limit
         else:
             limit = (a[0]/self.max_a_fric)**2 + (a[1]/self.max_a_fric)**2  # backwards accel limit
         if limit > 1.0:                                         # constrain to limit
             a *= 1 / np.sqrt(limit)
 
-        # new v based on constrained acceleration
+        # new v based on constrained acceleration (for long and lat relative to ang_tire)
+        v_long1 = v_long + a[0] * self.ts
+        v_lat1 = v_lat + a[1] * self.ts
+
         
 
         return (x, y, th, v, ome, phi, dist2c)
