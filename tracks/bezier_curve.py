@@ -67,7 +67,40 @@ class BezierCurve():
     def get_p2(self):
         return self.p2
 
+
+    # for any x,y point, returns shortest distance to the arc
+    # function for distance squared is D(t) = (B(t) - P)^2 where B is the
+    # bezier curve and P is the position of the car. The derivative is cubic
+    # and thats already solved easy
+    # B(t) = At^2 + Bt + C, D(t) = ( At^2 + Bt + C - P )^2
+    def d2arc(self, pos):   # pos = (2,) -> (x,y)
+        pos = np.array(pos)         # type check
+        A, B, C = self.get_bezier_coeff()
+        dCP = C - pos
+
+        dD_coeff = [
+            4*np.dot(A,A),
+            6*np.dot(A,B),
+            2*(2*np.dot(A,dCP) + np.dot(B,B)),
+            2*np.dot(B,dCP)
+        ]
+        roots = np.roots(dD_coeff)
+        real_roots = roots[np.isreal(roots)].real
+
+        # restrict search to roots on t in [0 1]
+        restricted_real_roots = np.concatenate((real_roots[(real_roots>=0) & (real_roots<=1)], [0.0, 1.0]))
+        # get nearest x,y points
+        nearest_points = self.get_bezier(restricted_real_roots)
+        # get distances to those points
+        dist_to_arc = np.linalg.norm(nearest_points - pos, axis=1)
+        # solving D'(t) for zero may false positive from local minima, take absolute min distance.
+        mindex = np.argmin(dist_to_arc) # min + index = mindex
+
+        return dist_to_arc[mindex] # return distance to B(t*)
+
+
     def check_end_distance(self, pos):
+        pos = np.array(pos)         # type check
         # Calculate whether the car is close enough to the checkpoint line
         # "close enough" is arbitrary lol
         # Make a square of length r around the center of the checkpoint
@@ -81,6 +114,7 @@ class BezierCurve():
     # checks which side of the end line the current position is on
     # for incrementing curves. returns the dot product, check happens in racetrack_env
     def check_end_line(self, pos):
+        pos = np.array(pos)         # type check
         # Calculate whether the car is past the line or not.
         # given the way the dot product works, you can take a normal vector from
         # the heading of the end waypoint, and take the dot with the vector of

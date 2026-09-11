@@ -60,39 +60,9 @@ class RacetrackEnv(gym.Env):
         return self.state
     
 
-    def d2arc(self):
-        # returns a distance form self.obs to the nearest point on self.cur_arc
-        # function for distance squared is D(t) = (B(t) - P)^2 where B is the
-        # bezier curve and P is the position of the car. The derivative is cubic
-        # and thats already solved easy
-        # B(t) = At^2 + Bt + C, D(t) = ( At^2 + Bt + C - P )^2
-        A, B, C = self.cur_arc.get_bezier_coeff()
-        dCP = C - self.state[:2]
-
-        dD_coeff = [
-            4*np.dot(A,A),
-            6*np.dot(A,B),
-            2*(2*np.dot(A,dCP) + np.dot(B,B)),
-            2*np.dot(B,dCP)
-        ]
-        roots = np.roots(dD_coeff)
-        real_roots = roots[np.isreal(roots)].real
-
-        # restrict search to roots on t in [0 1]
-        restricted_real_roots = np.concatenate((real_roots[(real_roots>=0) & (real_roots<=1)], [0.0, 1.0]))
-        # get nearest x,y points
-        nearest_points = self.cur_arc.get_bezier(restricted_real_roots)
-        # get distances to those points
-        dist_to_arc = np.linalg.norm(nearest_points - self.state[:2], axis=1)
-        # solving D'(t) for zero may false positive from local minima, take absolute min distance.
-        mindex = np.argmin(dist_to_arc) # min + index = mindex
-
-        return dist_to_arc[mindex] # return distance to B(t*)
-
-
     # given the obs and action at the start of the timestep, compute the new position
     # use self.state as obs. Do not set self.state in this function
-    # obs: [x, y, heading(th), spd, v_heading(ome), steering_angle(phi), distance_from_centerline]
+    # obs: [x, y, heading(th), v_long, v_lat, steering_angle(phi), distance_from_centerline]
     # action: [steering, throttle]
     def update_pos(self, action):
         steering, throttle = action[0], action[1]
@@ -101,13 +71,12 @@ class RacetrackEnv(gym.Env):
         phi = self.state[5] + steering*self.ts                # phi+ = phi + d_phi*dt
         phi = np.sign(phi)*min(np.abs(phi), self.max_turn)    # apply max constraint
 
-        # calculate lateral velocity relative to front wheel
-        ang_tire = self.state[2] + phi                         # tire absolute angle
-        v_lat = self.state[3]*np.sin(ang_tire - self.state[4]) # lateral velocity
-        v_long = self.state[3]*np.cos(ang_tire - self.state[4])# longitudinal velocity
+        # basis change to front wheel
+        A_f = np.array([[np.cos(phi), np.sin(phi)], [-np.sin(phi), np.cos(phi)]])     # rotation matrix forward
+        v_long_f, v_lat_f = np.matmul(A_f, np.array([self.state[3], self.state[4]]))  # change of basis
 
-        # longitudinal and lateral acceleration
-        a = np.array([throttle, v_lat**2*np.sin(phi)/self.wb]) # a_lat = v_lat^2/r
+        # longitudinal and lateral acceleration ***relative to front wheel
+        a = np.array([throttle, v_long_f**2*np.sin(phi)/self.wb]) # a_lat = v_long^2/r
         if a[0] > 0:                                           # acceleration limits
             limit = (a[0]/self.max_a_fwd)**2 + (a[1]/self.max_a_fric)**2  # forward accel limit
         else:
@@ -115,13 +84,29 @@ class RacetrackEnv(gym.Env):
         if limit > 1.0:                                         # constrain to limit
             a *= 1 / np.sqrt(limit)
 
-        # new v based on constrained acceleration (for long and lat relative to ang_tire)
-        v_long1 = v_long + a[0] * self.ts
-        v_lat1 = v_lat + a[1] * self.ts
+        # new v_***_f based on constrained acceleration
+        v_long_f_np1 = v_long_f + a[0]*self.ts      # forward euler
+        v_lat_f_np1 = v_lat_f + a[1]*self.ts
 
-        
+        # v back to bike frame. invert A_f for rotation backwards
+        v_long, v_lat = np.matmul(A_f.T, np.array([v_long_f_np1, v_lat_f_np1]))           # change basis back
 
-        return (x, y, th, v, ome, phi, dist2c)
+        # use v_long_f_np1 to calculate angular velocity
+        # omega = v / r = v / (wheelbase / sin(phi)) = v * sin(phi) / wb
+        omega = v_long_f_np1 * np.sin(phi) / self.wb
+        th = self.state[2] + omega * self.ts
+
+        # basis change velocity relative to world coordinates
+        A_w = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
+        v_x, v_y= np.matmul(A_w, np.array([v_long, v_lat]))
+
+        # forward euler x and y
+        x, y = self.state[0] + v_x*self.ts, self.state[1] + v_y*self.ts
+
+        # call d2arc for nearest distance to current arc
+        dist2c = self.cur_arc.d2arc((x,y))
+
+        return (x, y, th, v_long, v_lat, phi, dist2c)
 
 
     def reset(self, seed=None, options=None):
