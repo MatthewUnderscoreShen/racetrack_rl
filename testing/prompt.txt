@@ -1,0 +1,68 @@
+Pytest prompts
+
+====================================================================================
+
+For: bezier_curve.py
+
+You are writing a pytest script for my python class BezierCurve. The class handles
+the geometry relating to the creation of bezier curves. You will need to create the 
+code in python, using pytest, to test and confirm the functionality of the functions
+within BezierCurve. This process is split into two parts. First, the .yaml file
+containing the "questions" and "answers" for each test. Second, the .py file 
+containing all pytest functions that will use the questions from part 1 to test each
+function in BezierCurve and confirm they match the answers from part 1. Depending on
+which part appears in the prompt. Follow those instructions. This description is 
+simply for additional context.
+
+------------------------------------------------------------------------------------
+
+Part 0: .yaml spec
+
+------------------------------------------------------------------------------------
+
+yaml file specifications:
+
+testing: __init__()
+    
+
+------------------------------------------------------------------------------------
+
+Part 1: Question generation
+
+------------------------------------------------------------------------------------
+
+You are writing a .yaml file that will be used for test cases for a pytest script.
+You are responsible for writing both the questions and answers. You will not be 
+given access to the source code to avoid circular reasoning. Instead, the
+mathematical equations will be given below, and 
+
+------------------------------------------------------------------------------------
+
+Part 2:
+
+------------------------------------------------------------------------------------
+
+You are writing pytest tests for the class below
+
+## Context
+- Python 3.12.3, pytest 9.1.1
+- Mocking library: pytest-mock
+- Existing test style example below
+
+## Test Style
+```python
+def test_parse_config_return_defaults_when_file_missing():
+```
+
+## Source Code
+```python
+insert here
+```
+
+## Requirements
+- All test functions **must** start with test
+- All test function names should describe what is being tested
+- **Must** create pytest fixtures of bezier_curve objects first. One 
+
+## Output Format
+Return only the test file content, nothing else. No explanation is required.

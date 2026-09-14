@@ -5,11 +5,12 @@ import numpy as np
 # Quadratic only (for now)
 class BezierCurve():
 
-    def __init__(self, p0, p1, r): 
+    def __init__(self, p0, p1, r):
         # note: angles passed in as radians
 
         self.p0 = np.asarray(p0[:2], dtype=float)
         self.p1 = np.asarray(p1[:2], dtype=float)
+        self.p2 = None
         self.r = r
         self.p1_head = p1[2]    # for checkpoints
         # rotational transformation matrix for rotating a vector to
