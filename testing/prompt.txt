@@ -11,8 +11,9 @@ within BezierCurve. This process is split into two parts. First, the .yaml file
 containing the "questions" and "answers" for each test. Second, the .py file 
 containing all pytest functions that will use the questions from part 1 to test each
 function in BezierCurve and confirm they match the answers from part 1. Depending on
-which part appears in the prompt. Follow those instructions. This description is 
-simply for additional context.
+which part appears in the prompt. Follow those instructions. A part 0 detailing the 
+format of the yaml file will be included as well, regardless of which part (1 or 2)
+is given. This description is simply for additional context.
 
 ------------------------------------------------------------------------------------
 
@@ -22,7 +23,28 @@ Part 0: .yaml spec
 
 yaml file specifications:
 
+##Fixtures##
+    BezierCurve
+        Inputs:
+            p0 = [float, float, float]
+            p1 = [float, float, float]
+            r = float
+        Names:
+            parallel_curve
+            standard_curve_leq_90deg
+            standard_curve_geq_90deg
+
+##Tests##
+    __init__()
+
+
 testing: __init__()
+inputs:
+    p0 = [float, float, float]
+    p1 = [float, float, float]
+    r = float
+outputs:
+
     
 
 ------------------------------------------------------------------------------------
