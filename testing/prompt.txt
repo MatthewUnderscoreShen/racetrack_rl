@@ -4,6 +4,20 @@ Pytest prompts
 
 For: bezier_curve.py
 
+------------------------------------------------------------------------------------
+
+Personal Notes
+
+The prompt just needs to be organized such that all the necessary information to
+make a test function is available.
+    - fixture/function structure
+    - inputs
+        - type, shape
+    - expected outputs
+        - type, shape
+
+------------------------------------------------------------------------------------
+
 You are writing a pytest script for my python class BezierCurve. The class handles
 the geometry relating to the creation of bezier curves. You will need to create the 
 code in python, using pytest, to test and confirm the functionality of the functions
@@ -21,31 +35,76 @@ Part 0: .yaml spec
 
 ------------------------------------------------------------------------------------
 
-yaml file specifications:
-
-##Fixtures##
-    BezierCurve
-        Inputs:
-            p0 = [float, float, float]
-            p1 = [float, float, float]
-            r = float
-        Names:
-            parallel_curve
-            standard_curve_leq_90deg
-            standard_curve_geq_90deg
-
-##Tests##
-    __init__()
+### Overview
+    help
 
 
-testing: __init__()
-inputs:
-    p0 = [float, float, float]
-    p1 = [float, float, float]
-    r = float
-outputs:
+### Conventions
+    - headings (ex: p0[2], p1[2]) are in radians
+    - by default assertions for floats have a 1e-6 tolerance
+    - by default every "name" in a "test" is run for every fixture
+        - if indented beneath a "name", there are fixtures listed, the test is for 
+          those fixtures only
+    - "too parallel" threshold is pi/18
+    - in templates, *xyz* astricks indicates things that should be replaced.
 
-    
+
+### Templates
+
+## Fixture
+```python
+@pytest.fixture
+def *curve_name*():
+    return *Class*(*inputs*)
+```
+
+## Test
+```python
+@pytest.mark.parametrize("*input_names*", [
+    *inputs*
+])
+def *function_name*(*input_names*):
+    *test*
+```
+
+
+### Fixtures
+    ## BezierCurve(p0, p1, r)
+        # Inputs:
+            - p0 = [float, float, float]
+            - p1 = [float, float, float]
+            - r = float
+        # Names:
+            - curve_parallel
+            - curve_almost_parallel
+            - curve_leq_90deg
+            - curve_geq_90deg
+
+### Tests
+    ## .p2
+        # Inputs:
+        # Outputs:
+            - [float, float]
+        # Assertion Type: 
+        # Names:
+            - p2_exists     -> expected: [derived]
+                - curve_leq_90deg
+                - curve_geq_90deg
+            - p2_not_exists -> raises: ValueError
+                - curve_parallel
+                - curve_almost_parallel
+    ## .get_bezier
+        # Inputs:
+            - 0.0 <= float <= 1.0
+        # Outputs:
+            - [float, float]
+        # Names:
+            - at_0          -> expected: equals p0
+            - at_point_2    -> expected: derived
+            - at_point_4    -> expected: derived
+            - at_point_6    -> expected: derived
+            - at_point_8    -> expected: derived
+            - at_1          -> expected: equals p1
 
 ------------------------------------------------------------------------------------
 
@@ -74,6 +133,7 @@ You are writing pytest tests for the class below
 ## Test Style
 ```python
 def test_parse_config_return_defaults_when_file_missing():
+
 ```
 
 ## Source Code
