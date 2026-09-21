@@ -16,6 +16,9 @@ make a test function is available.
     - expected outputs
         - type, shape
 
+.yaml:
+    - organize by names (dict keys)
+
 ------------------------------------------------------------------------------------
 
 You are writing a pytest script for my python class BezierCurve. The class handles
@@ -51,6 +54,28 @@ Part 0: .yaml spec
 
 ### Templates
 
+## yaml
+```yaml
+fixture:
+    fixture_name_1:
+    
+test:
+    test_name_1:    (parametrization level)
+        case_name_1:
+            inputs:
+                *input_name_1*: *value*
+                *input_name_2*:
+                    -*value*
+                    -*value*
+                    ...
+                ...
+            outputs:
+                *
+        case_name_2:
+            ...
+        
+        
+
 ## Fixture
 ```python
 @pytest.fixture
@@ -60,11 +85,9 @@ def *curve_name*():
 
 ## Test
 ```python
-@pytest.mark.parametrize("*input_names*", [
-    *inputs*
-])
-def *function_name*(*input_names*):
-    *test*
+@pytest.mark.parametrize("case", )
+def test_*function_name*(*input_names*):
+    assert_outcome(*call*, *expected_outcome*)
 ```
 
 
@@ -99,12 +122,14 @@ def *function_name*(*input_names*):
         # Outputs:
             - [float, float]
         # Names:
+            - at_lt_0       -> expected: error
             - at_0          -> expected: equals p0
             - at_point_2    -> expected: derived
             - at_point_4    -> expected: derived
             - at_point_6    -> expected: derived
             - at_point_8    -> expected: derived
             - at_1          -> expected: equals p1
+            - at_gt_1       -> expected: error
 
 ------------------------------------------------------------------------------------
 
