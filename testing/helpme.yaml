@@ -19,3 +19,11 @@ fixtures:
       - 1.0
       - 2.3562
     r: 0.2
+tests:
+  get_bezier:
+    cases:
+      test_leq_0:
+        inputs: -1
+        outputs:
+          exception: "ValueError"
+          value: "None"
