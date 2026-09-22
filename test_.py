@@ -5,15 +5,15 @@ import yaml
 
 from tracks.bezier_curve import BezierCurve
 
-yaml_path = "helpme.yaml"
+yaml_path = "testing/helpme.yaml"
 with open(yaml_path, 'r') as f:
-    yaml_data = yaml.load(f, Loader=yaml.Fullloader)
+    yaml_data = yaml.load(f, Loader=yaml.FullLoader)
 fixtures = yaml_data["fixtures"]
 tests = yaml_data["tests"]
 
 
 def assert_output(input, output):
-    if output["sect"] == "raises":
+    if output.get("exception", None) != None:
         with pytest.raises(output["exception"]):
             input()
         return
@@ -26,16 +26,19 @@ def assert_output(input, output):
         atol = output.get("atol", 0.0)
     )
 
+tf = fixtures["curve_45deg"]
 @pytest.fixture
 def curve_45deg():
-    return BezierCurve(p0=(0,0,0), p1=(1,1,np.pi/2), r=0.2)
+    return BezierCurve(p0=tf["p0"], p1=tf["p1"], r=tf["r"])
 
+tf = fixtures["curve_135deg"]
 @pytest.fixture
 def curve_135deg():
-    return BezierCurve(p0=(0,0,0), p1=(1,1,3*np.pi/2), r=0.2)
+    return BezierCurve(p0=tf["p0"], p1=tf["p1"], r=tf["r"])
 
-@pytest.mark.parametrize("name", fixtures.keys())
-@pytest.mark.parametrize("case", tests["get_bezier"].items())
-def test_get_bezier(name, case, request):
+tt = tests["get_bezier"]
+@pytest.mark.parametrize("name", fixtures.keys(), ids=list(fixtures.keys()))
+@pytest.mark.parametrize("case, data", tt.items())
+def test_get_bezier(name, case, data, request):
     curve = request.getfixturevalue(name)
-    assert_output(lambda: curve.get_bezier(case["inputs"]), case["outputs"])
+    assert_output(lambda: curve.get_bezier(data["inputs"]), data["outputs"])

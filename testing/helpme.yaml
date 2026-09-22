@@ -23,7 +23,22 @@ tests:
   get_bezier:
     cases:
       test_leq_0:
-        inputs: -1
+        inputs: -1.0
         outputs:
           exception: "ValueError"
-          value: "None"
+      test_0:
+        inputs: 0.0
+        outputs:
+          value: 
+            - 0.0
+            - 0.0
+      test_0p5:
+        inputs: 0.5
+        outputs:
+          value: 
+      test_1:
+        inputs: 1.0
+        outputs:
+          value:
+            - 1.0
+            - 1.0
