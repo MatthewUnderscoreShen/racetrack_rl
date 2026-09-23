@@ -38,7 +38,10 @@ def curve_135deg():
 
 tt = tests["get_bezier"]
 @pytest.mark.parametrize("name", fixtures.keys(), ids=list(fixtures.keys()))
-@pytest.mark.parametrize("case, data", tt.items())
+@pytest.mark.parametrize("case, data", tt["cases"].items())
 def test_get_bezier(name, case, data, request):
+    print(name)
+    print(case)
+    print(data)
     curve = request.getfixturevalue(name)
     assert_output(lambda: curve.get_bezier(data["inputs"]), data["outputs"])
