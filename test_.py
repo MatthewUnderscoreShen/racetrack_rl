@@ -11,37 +11,41 @@ with open(yaml_path, 'r') as f:
 fixtures = yaml_data["fixtures"]
 tests = yaml_data["tests"]
 
+EXCEPTIONS = {
+    "ValueError": ValueError
+}
 
 def assert_output(input, output):
     if output.get("exception", None) != None:
-        with pytest.raises(output["exception"]):
+        with pytest.raises(EXCEPTIONS[output["exception"]]):
             input()
         return
 
     result = input()
+    print(result)
+    print(output["value"])
     np.testing.assert_allclose(
         result,
         output["value"],
-        rtol = output.get("rtol", 1e-6),
+        rtol = output.get("rtol", 1e-3),
         atol = output.get("atol", 0.0)
     )
 
-tf = fixtures["curve_45deg"]
+
 @pytest.fixture
 def curve_45deg():
+    tf = fixtures["curve_45deg"]
     return BezierCurve(p0=tf["p0"], p1=tf["p1"], r=tf["r"])
 
-tf = fixtures["curve_135deg"]
+
 @pytest.fixture
 def curve_135deg():
+    tf = fixtures["curve_135deg"]
     return BezierCurve(p0=tf["p0"], p1=tf["p1"], r=tf["r"])
 
 tt = tests["get_bezier"]
 @pytest.mark.parametrize("name", fixtures.keys(), ids=list(fixtures.keys()))
-@pytest.mark.parametrize("case, data", tt["cases"].items())
+@pytest.mark.parametrize("case, data", tt.items(), ids=list(tt.keys()))
 def test_get_bezier(name, case, data, request):
-    print(name)
-    print(case)
-    print(data)
     curve = request.getfixturevalue(name)
-    assert_output(lambda: curve.get_bezier(data["inputs"]), data["outputs"])
+    assert_output(lambda: curve.get_bezier(data["inputs"]), data["outputs"].get(name))

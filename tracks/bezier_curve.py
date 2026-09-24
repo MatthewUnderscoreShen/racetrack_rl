@@ -46,6 +46,7 @@ class BezierCurve():
 
 
     # for t in [0 1]
+    # returns (x, 2)
     def get_bezier(self, t):
         t = np.asarray(t, dtype=float)
         if np.any((t<0) | (t>1)):
