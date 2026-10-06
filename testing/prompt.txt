@@ -1,175 +1,68 @@
-Pytest prompts
+BezierCurve Test Generation prompt
 
-====================================================================================
+###Overview
 
-For: bezier_curve.py
+Your job is to generate pytest scripts for a class. The structure of the tests are
+given. You need to extrapolate this structure for new test cases that you will
+generate. Generation entails reproducing the existing template for new test cases,
+as well as generating the inputs, outputs, and parameters for said new test cases.
+The most important thing is consistency. Do not rewrite existing code, even if 
+doing so would fix an error. The objective is to repeat the code I have written.
+Mistakes made by the programmer (me) need to flag errors and should not be fixed
+by you.
 
-------------------------------------------------------------------------------------
+###Conventions
+    - Something that is prefaced with **MUST** or **MUST NOT** must absolutely be 
+    followed, no exceptions. Make sure to not mix up the positive and the negative.
+    - within code blocks (``` ```), the following markdown: ##...## indicates a
+      segment that should be replaced. All other code **MUST** not be changed.
 
-Personal Notes
+###Data
+#Fixtures
+    test_name: 
 
-The prompt just needs to be organized such that all the necessary information to
-make a test function is available.
-    - fixture/function structure
-    - inputs
-        - type, shape
-    - expected outputs
-        - type, shape
-
-.yaml:
-    - organize by names (dict keys)
-
-------------------------------------------------------------------------------------
-
-You are writing a pytest script for my python class BezierCurve. The class handles
-the geometry relating to the creation of bezier curves. You will need to create the 
-code in python, using pytest, to test and confirm the functionality of the functions
-within BezierCurve. This process is split into two parts. First, the .yaml file
-containing the "questions" and "answers" for each test. Second, the .py file 
-containing all pytest functions that will use the questions from part 1 to test each
-function in BezierCurve and confirm they match the answers from part 1. Depending on
-which part appears in the prompt. Follow those instructions. A part 0 detailing the 
-format of the yaml file will be included as well, regardless of which part (1 or 2)
-is given. This description is simply for additional context.
-
-------------------------------------------------------------------------------------
-
-Part 0: .yaml spec
-
-------------------------------------------------------------------------------------
-
-### Overview
-    help
-
-
-### Conventions
-    - headings (ex: p0[2], p1[2]) are in radians
-    - by default assertions for floats have a 1e-6 tolerance
-    - by default every "name" in a "test" is run for every fixture
-        - if indented beneath a "name", there are fixtures listed, the test is for 
-          those fixtures only
-    - "too parallel" threshold is pi/18
-    - in templates, *xyz* astricks indicates things that should be replaced.
-
-
-### Templates
-
-## yaml
+###Templates
+#pytest template
+```python
+# repeat this for every function to test
+tt = tests[##test_name##]
+@pytest.mark.parametrize("name, params", fixtures.items(), ids=list(fixtures.keys()))
+@pytest.mark.parametrize("data", tt.values(), ids=list(tt.keys()))
+def test_##test_name##(name, params, data):
+    curve = BezierCurve(**params)
+    assert_output(lambda: curve.##test_name##(**data["inputs"]), data["outputs"].get(name))
+```
+#yaml fixture template
 ```yaml
-fixture:
-    fixture_name_1:
-    
-test:
-    test_name_1:    (parametrization level)
-        case_name_1:
-            inputs:
-                *input_name_1*: *value*
-                *input_name_2*:
-                    -*value*
-                    -*value*
-                    ...
-                ...
-            outputs:
-                *
-        case_name_2:
-            ...
-        
-        
-
-## Fixture
-```python
-@pytest.fixture
-def *curve_name*():
-    return *Class*(*inputs*)
+##fixture_name_0##:
+    p0:
+      - ##x_0##
+      - ##y_0##
+      - ##theta_0##
+    p1:
+      - ##x_1##
+      - ##y_1##
+      - ##theta_1##
+    r: ##radius##
 ```
 
-## Test
-```python
-@pytest.mark.parametrize("case", )
-def test_*function_name*(*input_names*):
-    assert_outcome(*call*, *expected_outcome*)
+#yaml test template
+```yaml
+##test_name0##:
+    ##test_case_0##:
+      inputs: 
+        ##input dict##
+      outputs:
+        ##fixture_name_0##:
+          ##output dict##
+        ##fixture_name_1##:
+          ##output dict##
 ```
 
 
-### Fixtures
-    ## BezierCurve(p0, p1, r)
-        # Inputs:
-            - p0 = [float, float, float]
-            - p1 = [float, float, float]
-            - r = float
-        # Names:
-            - curve_parallel
-            - curve_almost_parallel
-            - curve_leq_90deg
-            - curve_geq_90deg
-
-### Tests
-    ## .p2
-        # Inputs:
-        # Outputs:
-            - [float, float]
-        # Assertion Type: 
-        # Names:
-            - p2_exists     -> expected: [derived]
-                - curve_leq_90deg
-                - curve_geq_90deg
-            - p2_not_exists -> raises: ValueError
-                - curve_parallel
-                - curve_almost_parallel
-    ## .get_bezier
-        # Inputs:
-            - 0.0 <= float <= 1.0
-        # Outputs:
-            - [float, float]
-        # Names:
-            - at_lt_0       -> expected: error
-            - at_0          -> expected: equals p0
-            - at_point_2    -> expected: derived
-            - at_point_4    -> expected: derived
-            - at_point_6    -> expected: derived
-            - at_point_8    -> expected: derived
-            - at_1          -> expected: equals p1
-            - at_gt_1       -> expected: error
-
-------------------------------------------------------------------------------------
-
-Part 1: Question generation
-
-------------------------------------------------------------------------------------
-
-You are writing a .yaml file that will be used for test cases for a pytest script.
-You are responsible for writing both the questions and answers. You will not be 
-given access to the source code to avoid circular reasoning. Instead, the
-mathematical equations will be given below, and 
-
-------------------------------------------------------------------------------------
-
-Part 2:
-
-------------------------------------------------------------------------------------
-
-You are writing pytest tests for the class below
-
-## Context
-- Python 3.12.3, pytest 9.1.1
-- Mocking library: pytest-mock
-- Existing test style example below
-
-## Test Style
-```python
-def test_parse_config_return_defaults_when_file_missing():
-
-```
-
-## Source Code
-```python
-insert here
-```
-
-## Requirements
-- All test functions **must** start with test
-- All test function names should describe what is being tested
-- **Must** create pytest fixtures of bezier_curve objects first. One 
-
-## Output Format
-Return only the test file content, nothing else. No explanation is required.
+###Final Output
+Output two code blocks: First, the python code containing the pytest functions. It
+should just be the same template with "##test_name##" replaced with the actual test
+name repeated for each test. Second: the yaml file with all the parameters. Simply
+output the entire file. Separate these two into their own markdown blocks. No
+additional explanation is needed in the output.

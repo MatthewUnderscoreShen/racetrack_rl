@@ -23,7 +23,7 @@ tests:
   get_bezier:
     test_leq_0:
       inputs: 
-        - -1.0
+        t: -1.0
       outputs:
         curve_45deg:
           exception: "ValueError"
@@ -31,7 +31,7 @@ tests:
           exception: "ValueError"
     test_0:
       inputs: 
-        - 0.0
+        t: 0.0
       outputs:
         curve_45deg:
           value: 
@@ -43,7 +43,7 @@ tests:
               - 0.0
     test_0p5:
       inputs: 
-        - 0.5
+        t: 0.5
       outputs:
         curve_45deg:
           value:
@@ -55,7 +55,7 @@ tests:
               - 0.25
     test_1:
       inputs: 
-        - 1.0
+        t: 1.0
       outputs:
         curve_45deg:
           value:
